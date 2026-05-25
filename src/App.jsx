@@ -8,10 +8,10 @@ import TiragePanel from './components/tirage/TiragePanel'
 import ResultatsList from './components/resultats/ResultatsList'
 
 const TABS = [
-  { id: 'participants', label: 'Participants', icon: '👥' },
-  { id: 'lots', label: 'Lots', icon: '🎁' },
-  { id: 'tirage', label: 'Tirage', icon: '🎰' },
-  { id: 'resultats', label: 'Résultats', icon: '🏆' },
+  { id: 'participants', label: 'Participants' },
+  { id: 'lots', label: 'Lots' },
+  { id: 'tirage', label: 'Tirage' },
+  { id: 'resultats', label: 'Résultats' },
 ]
 
 function AppContent() {
