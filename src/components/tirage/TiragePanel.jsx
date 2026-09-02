@@ -1,22 +1,24 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useCallback } from 'react'
 import { useApp } from '../../context/AppContext'
-import { effectuerTirage } from '../../utils/tirage'
+import { construirePlaces, tirerUnGagnant } from '../../utils/tirage'
+import Roulette from './Roulette'
 import { IconArrowRight, IconCheck } from '../ui/Icons'
 import { plural } from '../../utils/format'
-
-const ANIMATION_DURATION = 3500
-const TICK_START = 60
-const TICK_END = 450
 
 export default function TiragePanel({ onTirageComplete }) {
   const { participants, lots, sauvegarderResultat } = useApp()
   const [lotsSelectionnes, setLotsSelectionnes] = useState([])
-  const [nomAffiche, setNomAffiche] = useState('')
-  const [gagnants, setGagnants] = useState([])
   const [etape, setEtape] = useState('config')
-  const timeoutRef = useRef(null)
-
-  useEffect(() => () => clearTimeout(timeoutRef.current), [])
+  /** Les places à pourvoir, une par gagnant à désigner. */
+  const [places, setPlaces] = useState([])
+  /** Index de la place en cours de tirage. */
+  const [placeCourante, setPlaceCourante] = useState(0)
+  /** Gagnants déjà désignés, dans l'ordre de tirage. */
+  const [gagnants, setGagnants] = useState([])
+  /** Le gagnant de la place courante, tiré avant l'animation. */
+  const [gagnantEnCours, setGagnantEnCours] = useState(null)
+  /** 'roulette' pendant le défilement, 'revele' quand le nom est acquis. */
+  const [phase, setPhase] = useState('roulette')
 
   const peutLancer = participants.length > 0 && lotsSelectionnes.length > 0
   const placesEnJeu = lotsSelectionnes.reduce((acc, id) => {
@@ -32,56 +34,165 @@ export default function TiragePanel({ onTirageComplete }) {
     setLotsSelectionnes(lotsSelectionnes.length === lots.length ? [] : lots.map(l => l.id))
   }
 
+  /** Participants encore en lice : un gagnant ne peut pas être retiré deux fois. */
+  function participantsRestants(dejaGagnants) {
+    const pris = new Set(dejaGagnants.map(g => g.participant.id))
+    return participants.filter(p => !pris.has(p.id))
+  }
+
   function lancerTirage() {
     const lotsChoisis = lots.filter(l => lotsSelectionnes.includes(l.id))
-    const resultats = effectuerTirage(participants, lotsChoisis)
-    setGagnants(resultats)
+    const filePlaces = construirePlaces(lotsChoisis, participants.length)
+    if (filePlaces.length === 0) return
+
+    // Le gagnant est tiré maintenant, en arrière-plan : l'animation ne fait
+    // que révéler un résultat déjà décidé.
+    setPlaces(filePlaces)
+    setPlaceCourante(0)
+    setGagnants([])
+    setGagnantEnCours(tirerUnGagnant(participants))
+    setPhase('roulette')
     setEtape('animation')
+  }
 
-    let elapsed = 0
-    let tick = TICK_START
+  /** La roulette s'est arrêtée : on acquiert le gagnant et on marque une pause. */
+  const surArretRoulette = useCallback(() => {
+    setPhase('revele')
+  }, [])
 
-    function animate() {
-      setNomAffiche(participants[Math.floor(Math.random() * participants.length)].nom)
-      elapsed += tick
-      tick = TICK_START + Math.floor((TICK_END - TICK_START) * (elapsed / ANIMATION_DURATION))
-      if (elapsed >= ANIMATION_DURATION) {
-        setEtape('termine')
-        sauvegarderResultat(resultats)
-      } else {
-        timeoutRef.current = setTimeout(animate, tick)
-      }
+  /** Passe à la place suivante, ou clôt le tirage s'il n'en reste plus. */
+  function placeSuivante() {
+    const place = places[placeCourante]
+    const acquis = [...gagnants, { participant: gagnantEnCours, lot: place.lot }]
+    const suivante = placeCourante + 1
+    const restants = participantsRestants(acquis)
+
+    if (suivante >= places.length || restants.length === 0) {
+      setGagnants(acquis)
+      sauvegarderResultat(acquis)
+      setEtape('termine')
+      return
     }
-    timeoutRef.current = setTimeout(animate, tick)
+
+    setGagnants(acquis)
+    setPlaceCourante(suivante)
+    setGagnantEnCours(tirerUnGagnant(restants))
+    setPhase('roulette')
   }
 
   function recommencer() {
     setEtape('config')
+    setPlaces([])
+    setPlaceCourante(0)
     setGagnants([])
-    setNomAffiche('')
+    setGagnantEnCours(null)
+    setPhase('roulette')
     setLotsSelectionnes([])
   }
 
-  // ── Tirage en cours ────────────────────────────────────────────────
+  // ── Tirage en cours — une place à la fois ──────────────────────────
   if (etape === 'animation') {
+    const place = places[placeCourante]
+    const enLice = participantsRestants(gagnants)
+    const derniere = placeCourante + 1 >= places.length || enLice.length <= 1
+
     return (
-      <section style={{ padding: '60px 0' }}>
-        <div className="kicker kicker-accent" style={{ letterSpacing: '0.14em' }}>Participant sélectionné</div>
-        <div style={{ borderTop: '2px solid var(--color-divider)', borderBottom: '2px solid var(--color-divider)', marginTop: 12, padding: '52px 0', minHeight: 180, display: 'flex', alignItems: 'center' }}>
-          <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 'clamp(36px, 7vw, 64px)', lineHeight: 1.02, letterSpacing: '-0.03em', overflowWrap: 'anywhere' }}>
-            {nomAffiche || '…'}
+      <section style={{ padding: '28px 0' }}>
+        {/* Quelle place est en jeu, et où l'on en est dans la série. */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', paddingBottom: 14 }}>
+          <div>
+            <div className="kicker kicker-accent" style={{ letterSpacing: '0.14em' }}>
+              Tirage {placeCourante + 1} sur {places.length}
+            </div>
+            <h2 style={{ margin: '6px 0 2px', fontSize: 32, overflowWrap: 'anywhere' }}>{place.lot.nom}</h2>
+            <div style={{ fontSize: 13, color: 'color-mix(in srgb, var(--color-text) 55%, transparent)' }}>
+              {place.quantiteLot > 1
+                ? `Place ${place.rangDansLot} sur ${place.quantiteLot} · ${plural(enLice.length, 'participant')} en lice`
+                : `${plural(enLice.length, 'participant')} en lice`}
+            </div>
           </div>
+          {place.lot.image && (
+            <div style={{ width: 64, height: 64, flex: 'none', background: 'var(--color-neutral-200)', overflow: 'hidden' }}>
+              <div style={{ width: 64, height: 64, backgroundSize: 'cover', backgroundPosition: 'center', backgroundImage: `url("${place.lot.image}")` }} />
+            </div>
+          )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 20 }}>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {[0, 0.15, 0.3, 0.45].map(d => (
-              <span key={d} style={{ width: 9, height: 9, background: 'var(--color-accent)', animation: `blink 1s infinite ${d}s` }} />
+
+        {/* Progression de la série : une barre par place à pourvoir. */}
+        <div style={{ display: 'flex', gap: 3, marginBottom: 14 }}>
+          {places.map((_, i) => (
+            <span
+              key={i}
+              style={{
+                flex: 1, height: 4,
+                background: i < placeCourante
+                  ? 'var(--color-gold)'
+                  : i === placeCourante ? 'var(--color-accent)' : 'var(--color-divider)',
+              }}
+            />
+          ))}
+        </div>
+
+        <Roulette
+          key={placeCourante}
+          participants={enLice}
+          gagnant={gagnantEnCours}
+          onArret={surArretRoulette}
+        />
+
+        {/* Sous la roulette : l'attente pendant le défilement, puis la
+            confirmation du gagnant et le passage à la place suivante. */}
+        <div style={{ minHeight: 92, marginTop: 20 }}>
+          {phase === 'roulette' ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {[0, 0.15, 0.3, 0.45].map(d => (
+                  <span key={d} style={{ width: 9, height: 9, background: 'var(--color-accent)', animation: `blink 1s infinite ${d}s` }} />
+                ))}
+              </div>
+              <div style={{ fontSize: 13, color: 'color-mix(in srgb, var(--color-text) 55%, transparent)' }}>
+                Tirage en cours…
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap', animation: 'rise .3s both' }}>
+              <div>
+                <div className="kicker" style={{ letterSpacing: '0.14em', color: 'var(--color-gold-dark)' }}>Gagnant désigné</div>
+                <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 20, overflowWrap: 'anywhere' }}>
+                  {gagnantEnCours.nom}
+                </div>
+                {gagnantEnCours.email && (
+                  <div style={{ fontSize: 12, overflowWrap: 'anywhere', color: 'color-mix(in srgb, var(--color-text) 55%, transparent)' }}>
+                    {gagnantEnCours.email}
+                  </div>
+                )}
+              </div>
+              <button
+                className="btn btn-primary" onClick={placeSuivante}
+                style={{ fontSize: 15, padding: '12px 22px', whiteSpace: 'nowrap', marginLeft: 'auto' }}
+              >
+                {derniere ? 'Terminer le tirage' : 'Tirage suivant'}
+                <IconArrowRight size={16} />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Les gagnants déjà désignés restent visibles pendant la série. */}
+        {gagnants.length > 0 && (
+          <div style={{ marginTop: 8, paddingTop: 16, borderTop: '2px solid var(--color-divider)' }}>
+            <div className="kicker" style={{ marginBottom: 8 }}>Déjà désignés</div>
+            {gagnants.map((g, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid var(--color-divider)', fontSize: 14 }}>
+                <span style={{ width: 22, height: 22, flex: 'none', display: 'grid', placeItems: 'center', background: 'var(--color-gold)', color: 'var(--color-gold-ink)', fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 11 }}>
+                  {i + 1}
+                </span>
+                <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, overflowWrap: 'anywhere' }}>{g.participant.nom}</span>
+                <span className="tag tag-neutral" style={{ marginLeft: 'auto' }}>{g.lot.nom}</span>
+              </div>
             ))}
           </div>
-          <div style={{ fontSize: 13, color: 'color-mix(in srgb, var(--color-text) 55%, transparent)' }}>
-            {plural(participants.length, 'participant')} en lice
-          </div>
-        </div>
+        )}
       </section>
     )
   }
@@ -215,7 +326,7 @@ export default function TiragePanel({ onTirageComplete }) {
             ? 'Ajoutez des participants pour continuer.'
             : lotsSelectionnes.length === 0
               ? 'Sélectionnez au moins un lot pour continuer.'
-              : `${plural(placesEnJeu, 'gagnant')} ${placesEnJeu > 1 ? 'seront désignés' : 'sera désigné'} parmi ${plural(participants.length, 'participant')}.`}
+              : `${plural(Math.min(placesEnJeu, participants.length), 'gagnant')} ${Math.min(placesEnJeu, participants.length) > 1 ? 'seront désignés un par un' : 'sera désigné'} parmi ${plural(participants.length, 'participant')}.`}
         </div>
       </div>
     </section>
