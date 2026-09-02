@@ -21,6 +21,10 @@ export function AppProvider({ children }) {
     setParticipants(prev => prev.filter(p => p.id !== id))
   }
 
+  function reinitialiserParticipants() {
+    setParticipants([])
+  }
+
   function ajouterLot(data) {
     const nouveau = { id: crypto.randomUUID(), ...data }
     setLots(prev => [...prev, nouveau])
@@ -32,6 +36,10 @@ export function AppProvider({ children }) {
 
   function supprimerLot(id) {
     setLots(prev => prev.filter(l => l.id !== id))
+  }
+
+  function reinitialiserLots() {
+    setLots([])
   }
 
   function sauvegarderResultat(gagnants) {
@@ -49,8 +57,8 @@ export function AppProvider({ children }) {
 
   return (
     <AppContext.Provider value={{
-      participants, ajouterParticipant, modifierParticipant, supprimerParticipant,
-      lots, ajouterLot, modifierLot, supprimerLot,
+      participants, ajouterParticipant, modifierParticipant, supprimerParticipant, reinitialiserParticipants,
+      lots, ajouterLot, modifierLot, supprimerLot, reinitialiserLots,
       historique, sauvegarderResultat, effacerHistorique,
     }}>
       {children}

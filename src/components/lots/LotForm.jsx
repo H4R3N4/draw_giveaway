@@ -1,230 +1,144 @@
 import { useState, useEffect, useRef } from 'react'
+import { IconUpload } from '../ui/Icons'
 
-const IconUpload = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-    <polyline points="17 8 12 3 7 8"/>
-    <line x1="12" y1="3" x2="12" y2="15"/>
-  </svg>
-)
+const TAILLE_MAX = 5 * 1024 * 1024
 
 export default function LotForm({ lot, onSubmit, onClose }) {
-  const [form, setForm] = useState({ nom: '', description: '', quantite: 1, valeur: '', image: '' })
+  // La modale est montée à neuf à chaque ouverture : l'état initial suffit.
+  const [form, setForm] = useState(() => ({
+    nom: lot?.nom || '',
+    description: lot?.description || '',
+    quantite: lot?.quantite ?? 1,
+    valeur: lot?.valeur || '',
+    image: lot?.image || '',
+  }))
   const [errors, setErrors] = useState({})
-  const [imagePreview, setImagePreview] = useState('')
   const fileRef = useRef(null)
 
   useEffect(() => {
-    if (lot) {
-      setForm({
-        nom: lot.nom,
-        description: lot.description || '',
-        quantite: lot.quantite,
-        valeur: lot.valeur || '',
-        image: lot.image || '',
-      })
-      setImagePreview(lot.image || '')
-    }
-  }, [lot])
+    function onKey(e) { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
 
   function handleImageChange(e) {
     const file = e.target.files[0]
     if (!file) return
+    if (file.size > TAILLE_MAX) {
+      setErrors(errs => ({ ...errs, image: 'Image trop lourde — 5 Mo maximum' }))
+      e.target.value = ''
+      return
+    }
     const reader = new FileReader()
-    reader.onload = (ev) => {
-      setImagePreview(ev.target.result)
+    reader.onload = ev => {
       setForm(f => ({ ...f, image: ev.target.result }))
+      setErrors(errs => ({ ...errs, image: undefined }))
     }
     reader.readAsDataURL(file)
   }
 
   function removeImage() {
-    setImagePreview('')
     setForm(f => ({ ...f, image: '' }))
     if (fileRef.current) fileRef.current.value = ''
   }
 
-  function validate() {
-    const errs = {}
-    if (!form.nom.trim()) errs.nom = 'Le nom est requis'
-    if (!form.quantite || form.quantite < 1) errs.quantite = 'La quantité doit être ≥ 1'
-    return errs
+  function setQuantite(n) {
+    setForm(f => ({ ...f, quantite: Math.max(1, n) }))
+    setErrors(errs => ({ ...errs, quantite: undefined }))
   }
 
   function handleSubmit(e) {
     e.preventDefault()
-    const errs = validate()
-    if (Object.keys(errs).length > 0) { setErrors(errs); return }
-    onSubmit({ ...form, quantite: parseInt(form.quantite, 10) })
+    const errs = {}
+    if (!form.nom.trim()) errs.nom = 'Le nom du lot est requis'
+    const q = parseInt(form.quantite, 10)
+    if (!q || q < 1) errs.quantite = 'Minimum 1'
+    if (Object.keys(errs).length) { setErrors(errs); return }
+    onSubmit({ ...form, nom: form.nom.trim(), description: form.description.trim(), quantite: q })
   }
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
-        style={{ boxShadow: '0 25px 60px rgba(0,0,0,.15)' }}>
+    <div className="dialog-backdrop" style={{ zIndex: 40, overflow: 'auto' }} onMouseDown={e => e.target === e.currentTarget && onClose()}>
+      <form className="dialog" onSubmit={handleSubmit} role="dialog" aria-modal="true" style={{ width: 'min(520px, 100%)', margin: 'auto' }}>
+        <div className="dialog-title">{lot ? 'Modifier le lot' : 'Ajouter un lot'}</div>
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-4 sticky top-0 bg-white z-10 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-900">
-            {lot ? 'Modifier le lot' : 'Ajouter un lot'}
-          </h2>
+        <input ref={fileRef} type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
+
+        {form.image ? (
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <div style={{ width: 130, height: 130, flex: 'none', background: 'var(--color-neutral-200)', overflow: 'hidden' }}>
+              <div style={{ width: 130, height: 130, backgroundSize: 'cover', backgroundPosition: 'center', backgroundImage: `url("${form.image}")` }} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => fileRef.current?.click()}>Changer l'image</button>
+              <button type="button" className="btn btn-ghost" onClick={removeImage}>Supprimer l'image</button>
+            </div>
+          </div>
+        ) : (
           <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors text-lg leading-none"
+            type="button" onClick={() => fileRef.current?.click()}
+            style={{ appearance: 'none', cursor: 'pointer', width: '100%', padding: 26, background: 'transparent', border: '2px dashed var(--color-divider)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, font: 'inherit', color: 'inherit' }}
           >
-            ×
+            <IconUpload size={22} stroke="var(--color-accent)" />
+            <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 14 }}>Importer une photo du lot</span>
+            <span style={{ fontSize: 12, color: 'color-mix(in srgb, var(--color-text) 55%, transparent)' }}>PNG, JPG, WEBP — max 5 Mo</span>
           </button>
+        )}
+        {errors.image && <div style={{ fontSize: 12, color: 'var(--color-accent-700)' }}>{errors.image}</div>}
+
+        <div className="field">
+          <label htmlFor="l-nom">Nom du lot *</label>
+          <input
+            id="l-nom" className="input" type="text" autoFocus
+            value={form.nom}
+            onChange={e => { setForm(f => ({ ...f, nom: e.target.value })); setErrors(errs => ({ ...errs, nom: undefined })) }}
+            placeholder="Ex. Casque audio"
+          />
+          {errors.nom && <div style={{ fontSize: 12, color: 'var(--color-accent-700)', marginTop: 5 }}>{errors.nom}</div>}
         </div>
 
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+        <div className="field">
+          <label htmlFor="l-desc">Description (facultatif)</label>
+          <input
+            id="l-desc" className="input" type="text"
+            value={form.description}
+            onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+            placeholder="Ex. Sans fil, réduction de bruit"
+          />
+        </div>
 
-          {/* Zone upload image */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-              Image du lot
-            </label>
-            {imagePreview ? (
-              <div className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-50" style={{ height: 160 }}>
-                <img
-                  src={imagePreview}
-                  alt="Aperçu"
-                  className="w-full h-full object-contain"
-                />
-                <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
-                  <button
-                    type="button"
-                    onClick={removeImage}
-                    className="bg-red-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg"
-                  >
-                    Supprimer l'image
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                className="w-full border-2 border-dashed border-slate-200 rounded-xl py-8 flex flex-col items-center gap-2 text-slate-400 hover:border-violet-300 hover:text-violet-500 transition-colors bg-slate-50 hover:bg-violet-50"
-              >
-                <IconUpload />
-                <span className="text-sm font-medium">Cliquer pour importer une image</span>
-                <span className="text-xs">PNG, JPG, WEBP — max 5 Mo</span>
-              </button>
-            )}
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-              className="hidden"
-            />
-            {imagePreview && (
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                className="mt-2 text-xs text-violet-600 hover:underline"
-              >
-                Changer l'image
-              </button>
-            )}
-          </div>
-
-          {/* Nom */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-              Nom du lot *
-            </label>
-            <input
-              type="text"
-              autoFocus
-              value={form.nom}
-              onChange={e => setForm(f => ({ ...f, nom: e.target.value }))}
-              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition"
-              placeholder="ex: iPhone 15 Pro"
-            />
-            {errors.nom && <p className="text-red-500 text-xs mt-1.5">{errors.nom}</p>}
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-              Description <span className="normal-case font-normal text-slate-400">(optionnelle)</span>
-            </label>
-            <input
-              type="text"
-              value={form.description}
-              onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition"
-              placeholder="ex: 128 Go, Titanium Naturel"
-            />
-          </div>
-
-          {/* Quantité + Valeur */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                Quantité *
-              </label>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setForm(f => ({ ...f, quantite: Math.max(1, parseInt(f.quantite, 10) - 1) }))}
-                  className="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-bold text-lg transition-colors shrink-0"
-                >
-                  −
-                </button>
-                <input
-                  type="number"
-                  min="1"
-                  value={form.quantite}
-                  onChange={e => setForm(f => ({ ...f, quantite: e.target.value }))}
-                  className="w-full text-center border border-slate-200 rounded-xl px-2 py-2.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition"
-                />
-                <button
-                  type="button"
-                  onClick={() => setForm(f => ({ ...f, quantite: parseInt(f.quantite, 10) + 1 }))}
-                  className="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-bold text-lg transition-colors shrink-0"
-                >
-                  +
-                </button>
-              </div>
-              {errors.quantite && <p className="text-red-500 text-xs mt-1.5">{errors.quantite}</p>}
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                Valeur (€)
-              </label>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="field">
+            <label htmlFor="l-qty">Quantité *</label>
+            <div style={{ display: 'flex' }}>
+              <button type="button" className="btn btn-secondary btn-icon" onClick={() => setQuantite(parseInt(form.quantite, 10) - 1)} aria-label="Diminuer">−</button>
               <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={form.valeur}
-                onChange={e => setForm(f => ({ ...f, valeur: e.target.value }))}
-                className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition"
-                placeholder="0,00"
+                id="l-qty" className="input" type="number" min="1"
+                value={form.quantite}
+                onChange={e => setForm(f => ({ ...f, quantite: e.target.value }))}
+                style={{ textAlign: 'center', borderLeft: 0, borderRight: 0 }}
               />
+              <button type="button" className="btn btn-secondary btn-icon" onClick={() => setQuantite(parseInt(form.quantite, 10) + 1)} aria-label="Augmenter">+</button>
             </div>
+            {errors.quantite && <div style={{ fontSize: 12, color: 'var(--color-accent-700)', marginTop: 5 }}>{errors.quantite}</div>}
           </div>
 
-          {/* Actions */}
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-3 text-sm font-semibold text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors"
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              className="flex-1 px-4 py-3 text-sm font-semibold text-white bg-violet-600 rounded-xl hover:bg-violet-700 transition-colors"
-              style={{ boxShadow: '0 4px 12px rgba(124,58,237,.3)' }}
-            >
-              {lot ? 'Enregistrer' : 'Ajouter'}
-            </button>
+          <div className="field">
+            <label htmlFor="l-valeur">Valeur (euros, facultatif)</label>
+            <input
+              id="l-valeur" className="input" type="number" min="0" step="0.01"
+              value={form.valeur}
+              onChange={e => setForm(f => ({ ...f, valeur: e.target.value }))}
+              placeholder="0"
+            />
           </div>
-        </form>
-      </div>
+        </div>
+
+        <div className="dialog-actions">
+          <button type="button" className="btn btn-secondary" onClick={onClose}>Annuler</button>
+          <button type="submit" className="btn btn-primary">{lot ? 'Enregistrer' : 'Ajouter'}</button>
+        </div>
+      </form>
     </div>
   )
 }

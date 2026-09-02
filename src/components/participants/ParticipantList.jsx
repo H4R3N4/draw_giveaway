@@ -1,197 +1,120 @@
 import { useState } from 'react'
 import { useApp } from '../../context/AppContext'
 import ParticipantForm from './ParticipantForm'
-
-function getInitiales(nom) {
-  if (!nom) return '?'
-  return nom.trim().split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
-}
-
-const AVATAR_COLORS = [
-  ['#ede9fe', '#7c3aed'], ['#dbeafe', '#2563eb'], ['#dcfce7', '#16a34a'],
-  ['#fef3c7', '#d97706'], ['#fce7f3', '#db2777'], ['#e0f2fe', '#0284c7'],
-]
-
-function avatarColor(id) {
-  const hash = id ? id.charCodeAt(0) % AVATAR_COLORS.length : 0
-  return AVATAR_COLORS[hash]
-}
-
-const IconSearch = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-  </svg>
-)
-const IconPlus = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-  </svg>
-)
-const IconEdit = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-  </svg>
-)
-const IconTrash = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-    <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-  </svg>
-)
+import ConfirmDialog from '../ui/ConfirmDialog'
+import { IconPlus, IconSearch, IconClose, IconEdit, IconTrash, IconUsers } from '../ui/Icons'
+import { getInitiales, avatarColor, plural } from '../../utils/format'
 
 export default function ParticipantList() {
-  const { participants, ajouterParticipant, modifierParticipant, supprimerParticipant } = useApp()
+  const { participants, ajouterParticipant, modifierParticipant, supprimerParticipant, reinitialiserParticipants } = useApp()
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
+  const [confirmReset, setConfirmReset] = useState(false)
 
   const filtered = participants.filter(p =>
     `${p.nom} ${p.email || ''}`.toLowerCase().includes(search.toLowerCase())
   )
+  const avecEmail = participants.filter(p => p.email).length
 
   function handleSubmit(data) {
-    if (editing) {
-      modifierParticipant(editing.id, data)
-      setEditing(null)
-    } else {
-      ajouterParticipant(data)
-      setShowForm(false)
-    }
+    if (editing) modifierParticipant(editing.id, data)
+    else ajouterParticipant(data)
+    setEditing(null)
+    setShowForm(false)
   }
 
   return (
-    <div>
-      {/* En-tête */}
-      <div className="flex items-center justify-between mb-6">
+    <section>
+      <div className="section-head">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">Participants</h2>
-          <p className="text-sm text-slate-500 mt-0.5">
-            {participants.length} participant{participants.length !== 1 ? 's' : ''} enregistré{participants.length !== 1 ? 's' : ''}
-          </p>
+          <h2 style={{ margin: '0 0 2px' }}>Participants</h2>
+          <div style={{ fontSize: 13, color: 'color-mix(in srgb, var(--color-text) 55%, transparent)' }}>
+            {plural(participants.length, 'participant')} {participants.length > 1 ? 'enregistrés' : 'enregistré'}
+          </div>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 active:scale-95 transition-all"
-          style={{ boxShadow: '0 4px 12px rgba(124,58,237,.35)' }}
-        >
-          <IconPlus />
-          Ajouter
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {participants.length > 0 && (
+            <button className="btn btn-secondary" onClick={() => setConfirmReset(true)}>Réinitialiser</button>
+          )}
+          <button className="btn btn-primary" onClick={() => setShowForm(true)}>
+            <IconPlus size={15} />
+            Ajouter
+          </button>
+        </div>
       </div>
 
-      {/* Stats */}
       {participants.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 mb-5">
-          <div className="bg-white rounded-2xl p-4 border border-slate-100" style={{ boxShadow: '0 2px 8px rgba(0,0,0,.05)' }}>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Total</p>
-            <p className="text-3xl font-extrabold text-slate-900">{participants.length}</p>
-            <p className="text-xs text-slate-500 mt-0.5">participant{participants.length !== 1 ? 's' : ''}</p>
+        <div className="stat-grid">
+          <div>
+            <div className="kicker kicker-accent">Total</div>
+            <div className="stat-value">{participants.length}</div>
           </div>
-          <div className="bg-white rounded-2xl p-4 border border-slate-100" style={{ boxShadow: '0 2px 8px rgba(0,0,0,.05)' }}>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Avec email</p>
-            <p className="text-3xl font-extrabold text-slate-900">
-              {participants.filter(p => p.email).length}
-            </p>
-            <p className="text-xs text-slate-500 mt-0.5">contact{participants.filter(p => p.email).length !== 1 ? 's' : ''} renseigné{participants.filter(p => p.email).length !== 1 ? 's' : ''}</p>
+          <div>
+            <div className="kicker">Avec email</div>
+            <div className="stat-value">{avecEmail}</div>
           </div>
         </div>
       )}
 
-      {/* Barre de recherche */}
-      <div className="relative mb-4">
-        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-          <IconSearch />
-        </span>
-        <input
-          type="text"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Rechercher un participant..."
-          className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl text-sm bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition"
-        />
-        {search && (
-          <button
-            onClick={() => setSearch('')}
-            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-lg leading-none"
-          >
-            ×
-          </button>
-        )}
-      </div>
-
-      {/* Liste */}
-      {filtered.length === 0 ? (
-        <div className="text-center py-16">
-          <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-            </svg>
-          </div>
-          <p className="text-base font-semibold text-slate-700">
-            {search ? 'Aucun résultat' : 'Aucun participant'}
-          </p>
-          <p className="text-sm text-slate-400 mt-1">
-            {search ? `Aucun résultat pour "${search}"` : 'Ajoutez votre premier participant pour commencer'}
-          </p>
-          {!search && (
-            <button
-              onClick={() => setShowForm(true)}
-              className="mt-4 px-5 py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors"
-            >
-              Ajouter un participant
+      {participants.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 0', borderBottom: '1px solid var(--color-divider)' }}>
+          <span style={{ opacity: 0.5, flex: 'none', display: 'flex' }}><IconSearch /></span>
+          <input
+            className="input" type="text" value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Rechercher un nom ou un email"
+            style={{ border: 0, background: 'transparent', padding: 0, minHeight: 26, fontSize: 15 }}
+          />
+          {search && (
+            <button className="btn btn-ghost" onClick={() => setSearch('')} style={{ flex: 'none' }} title="Effacer">
+              <IconClose size={15} />
             </button>
           )}
         </div>
-      ) : (
-        <div className="space-y-2">
-          {filtered.map(p => {
-            const [bg, fg] = avatarColor(p.id)
-            const initiales = getInitiales(p.nom)
-            return (
-              <div
-                key={p.id}
-                className="bg-white border border-slate-100 rounded-2xl px-4 py-3.5 flex items-center gap-3 hover:border-violet-200 hover:shadow-md transition-all group"
-                style={{ boxShadow: '0 1px 4px rgba(0,0,0,.04)' }}
-              >
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0"
-                  style={{ backgroundColor: bg, color: fg }}
-                >
-                  {initiales}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-slate-900 text-sm truncate">{p.nom}</p>
-                  {p.email
-                    ? <p className="text-slate-400 text-xs truncate mt-0.5">{p.email}</p>
-                    : <p className="text-slate-300 text-xs mt-0.5">Pas d'email</p>
-                  }
-                </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => setEditing(p)}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition-colors"
-                    title="Modifier"
-                  >
-                    <IconEdit />
-                  </button>
-                  <button
-                    onClick={() => setConfirmDelete(p)}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                    title="Supprimer"
-                  >
-                    <IconTrash />
-                  </button>
-                </div>
-              </div>
-            )
-          })}
+      )}
+
+      {filtered.map(p => (
+        <div className="row" key={p.id}>
+          <div style={{ width: 42, height: 42, flex: 'none', display: 'grid', placeItems: 'center', background: avatarColor(p.id), color: 'var(--color-bg)', fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 14, letterSpacing: '0.04em' }}>
+            {getInitiales(p.nom)}
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div className="row-name" style={{ overflowWrap: 'anywhere' }}>{p.nom}</div>
+            <div style={{ fontSize: 13, overflowWrap: 'anywhere', color: p.email ? 'color-mix(in srgb, var(--color-text) 55%, transparent)' : 'color-mix(in srgb, var(--color-text) 35%, transparent)' }}>
+              {p.email || "Pas d'email"}
+            </div>
+          </div>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+            <button className="btn btn-icon btn-secondary" onClick={() => setEditing(p)} title="Modifier">
+              <IconEdit size={15} />
+            </button>
+            <button className="btn btn-icon btn-secondary" onClick={() => setConfirmDelete(p)} title="Supprimer">
+              <IconTrash size={15} />
+            </button>
+          </div>
+        </div>
+      ))}
+
+      {participants.length > 0 && filtered.length === 0 && (
+        <div style={{ padding: '56px 0', fontSize: 14, color: 'color-mix(in srgb, var(--color-text) 55%, transparent)' }}>
+          Aucun résultat pour « {search} »
         </div>
       )}
 
-      {/* Modal formulaire */}
+      {participants.length === 0 && (
+        <div style={{ padding: '64px 0 24px', maxWidth: 420 }}>
+          <IconUsers size={34} stroke="var(--color-accent)" />
+          <h3 style={{ margin: '16px 0 6px' }}>Aucun participant</h3>
+          <p style={{ fontSize: 14, color: 'color-mix(in srgb, var(--color-text) 55%, transparent)' }}>
+            Constituez d'abord la liste des personnes qui participent au tirage.
+            Le nom est obligatoire, l'email facultatif.
+          </p>
+          <button className="btn btn-primary" onClick={() => setShowForm(true)}>Ajouter un participant</button>
+        </div>
+      )}
+
       {(showForm || editing) && (
         <ParticipantForm
           participant={editing}
@@ -200,34 +123,14 @@ export default function ParticipantList() {
         />
       )}
 
-      {/* Modal confirmation suppression */}
       {confirmDelete && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full" style={{ boxShadow: '0 25px 60px rgba(0,0,0,.15)' }}>
-            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
-              <IconTrash />
-            </div>
-            <h3 className="font-bold text-slate-900 text-center mb-1">Supprimer ce participant ?</h3>
-            <p className="text-slate-500 text-sm text-center mb-5">
-              <strong className="text-slate-700">{confirmDelete.nom}</strong> sera définitivement supprimé.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirmDelete(null)}
-                className="flex-1 px-4 py-2.5 text-sm font-semibold text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={() => { supprimerParticipant(confirmDelete.id); setConfirmDelete(null) }}
-                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-red-500 rounded-xl hover:bg-red-600 transition-colors"
-              >
-                Supprimer
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title="Supprimer ce participant ?"
+          body={<><strong>{confirmDelete.nom}</strong> sera définitivement retiré de la liste.</>}
+          onConfirm={() => { supprimerParticipant(confirmDelete.id); setConfirmDelete(null) }}
+          onClose={() => setConfirmDelete(null)}
+        />
       )}
-    </div>
+    </section>
   )
 }

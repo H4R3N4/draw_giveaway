@@ -1,0 +1,406 @@
+================================================================================
+                  APPLICATION "TIRAGE AU SORT" (draw_giveaway)
+                       Note fonctionnelle complete
+================================================================================
+
+
+--------------------------------------------------------------------------------
+1. PRESENTATION GENERALE
+--------------------------------------------------------------------------------
+
+C'est une application web (page unique) de gestion de tirages au sort et de
+jeux-concours ("giveaway").
+
+Elle permet de :
+  - gerer une liste de participants,
+  - gerer une liste de lots (prix a gagner),
+  - lancer un tirage au sort aleatoire avec une animation,
+  - consulter l'historique de tous les tirages effectues.
+
+Points cles :
+  - Application 100 % cote navigateur (front-end uniquement).
+  - AUCUN serveur, AUCUNE base de donnees, AUCUN compte utilisateur.
+  - Toutes les donnees sont stockees dans le localStorage du navigateur :
+    elles persistent apres fermeture de l'onglet, mais restent locales a la
+    machine et au navigateur utilises.
+  - Interface entierement en francais.
+
+Stack technique :
+  - React 19 (composants fonctionnels + hooks)
+  - Vite 7 (serveur de developpement et build)
+  - Tailwind CSS 4 (via le plugin Vite) pour le style
+  - ESLint 9 pour l'analyse du code
+  - Police Inter (Google Fonts), theme clair violet / ardoise
+  - Icones SVG dessinees en ligne (aucune librairie d'icones)
+
+Scripts npm disponibles :
+  npm run dev      -> lance le serveur de developpement
+  npm run build    -> genere la version de production
+  npm run preview  -> previsualise le build
+  npm run lint     -> analyse le code
+
+
+--------------------------------------------------------------------------------
+2. STRUCTURE DE L'APPLICATION
+--------------------------------------------------------------------------------
+
+L'application est organisee autour d'une barre de navigation en haut de page
+et de 4 onglets. Un seul onglet est affiche a la fois, la navigation se fait
+sans rechargement de page.
+
+  Onglet 1 : PARTICIPANTS
+  Onglet 2 : LOTS
+  Onglet 3 : TIRAGE
+  Onglet 4 : RESULTATS
+
+La barre de navigation affiche :
+  - le logo (coeur violet) avec le titre "Tirage au Sort" et le sous-titre
+    "Gerez vos participants, lots et tirages",
+  - les 4 onglets, chacun avec son icone,
+  - un badge compteur sur les onglets "Participants" et "Lots" indiquant le
+    nombre d'elements enregistres (le badge n'apparait que si ce nombre est
+    superieur a 0),
+  - un soulignement violet sous l'onglet actif.
+
+Fichiers principaux :
+  src/main.jsx                     -> point d'entree React
+  src/App.jsx                      -> gestion des onglets
+  src/components/Navbar.jsx        -> barre de navigation
+  src/context/AppContext.jsx       -> etat global (participants, lots, historique)
+  src/hooks/useLocalStorage.js     -> persistance dans le localStorage
+  src/utils/tirage.js              -> algorithme du tirage au sort
+  src/components/participants/     -> liste et formulaire des participants
+  src/components/lots/             -> liste et formulaire des lots
+  src/components/tirage/           -> panneau de tirage
+  src/components/resultats/        -> historique des resultats
+
+
+--------------------------------------------------------------------------------
+3. ONGLET "PARTICIPANTS"
+--------------------------------------------------------------------------------
+
+Role : constituer la liste des personnes qui participent au tirage.
+
+3.1 Donnees d'un participant
+  - id         : identifiant unique genere automatiquement (UUID)
+  - nom        : nom complet (OBLIGATOIRE)
+  - email      : adresse email (FACULTATIF)
+  - dateAjout  : date et heure d'ajout, enregistrees automatiquement
+
+3.2 Fonctionnalites
+  - AJOUTER un participant
+      Bouton "Ajouter" en haut a droite, ou bouton central quand la liste est
+      vide. Ouvre une fenetre modale contenant :
+        * un apercu d'avatar affichant les initiales, calculees en direct
+          pendant la saisie du nom (2 lettres maximum, sinon "?"),
+        * un champ "Nom complet" (obligatoire, avec focus automatique),
+        * un champ "Email" (optionnel),
+        * les boutons "Annuler" et "Ajouter".
+      Validation : si le nom est vide, un message d'erreur rouge s'affiche
+      ("Le nom est requis") et l'enregistrement est bloque.
+
+  - MODIFIER un participant
+      Icone crayon sur la ligne du participant (visible au survol).
+      Rouvre la meme modale, pre-remplie, avec le titre "Modifier le
+      participant" et le bouton "Enregistrer".
+      Compatibilite assuree avec d'anciennes donnees enregistrees au format
+      "prenom + nom" separes : les deux champs sont alors fusionnes a
+      l'affichage.
+
+  - SUPPRIMER un participant
+      Icone corbeille sur la ligne (visible au survol).
+      Une modale de confirmation s'affiche, rappelant le nom du participant
+      concerne, avec les boutons "Annuler" et "Supprimer".
+
+  - RECHERCHER
+      Barre de recherche avec icone loupe. Le filtrage est instantane et
+      insensible a la casse ; il porte a la fois sur le NOM et sur l'EMAIL.
+      Une croix permet d'effacer la recherche en un clic.
+
+3.3 Affichage
+  - Titre "Participants" et sous-titre indiquant le nombre enregistre
+    (avec accord singulier / pluriel automatique).
+  - Deux cartes statistiques, affichees uniquement s'il y a au moins un
+    participant :
+        * "Total" : nombre total de participants,
+        * "Avec email" : nombre de participants ayant renseigne un email.
+  - Liste des participants sous forme de cartes :
+        * pastille affichant les initiales, coloree automatiquement (6
+          couleurs possibles, choisies de facon deterministe a partir de
+          l'identifiant, donc stables dans le temps),
+        * nom en gras,
+        * email en dessous, ou la mention "Pas d'email",
+        * boutons modifier et supprimer apparaissant au survol.
+  - Etats vides : si aucun participant, ecran d'invitation avec icone et
+    bouton "Ajouter un participant". Si une recherche ne donne aucun
+    resultat, message "Aucun resultat pour <recherche>".
+
+
+--------------------------------------------------------------------------------
+4. ONGLET "LOTS"
+--------------------------------------------------------------------------------
+
+Role : definir les prix a gagner et le nombre d'exemplaires de chacun.
+
+4.1 Donnees d'un lot
+  - id          : identifiant unique (UUID)
+  - nom         : nom du lot (OBLIGATOIRE)
+  - description : description courte (FACULTATIF)
+  - quantite    : nombre d'exemplaires du lot (OBLIGATOIRE, minimum 1)
+  - valeur      : valeur en euros (FACULTATIF)
+  - image       : photo du lot (FACULTATIF)
+
+4.2 Fonctionnalites
+  - AJOUTER ou MODIFIER un lot
+      Modale contenant :
+        * Zone d'IMPORT D'IMAGE : un clic sur la zone en pointilles ouvre le
+          selecteur de fichiers (formats image, indication "PNG, JPG, WEBP -
+          max 5 Mo"). L'image choisie est lue en local, convertie en
+          data-URL base64 et stockee avec le lot. Un apercu s'affiche
+          immediatement, avec la possibilite de "Changer l'image" ou de
+          "Supprimer l'image" (au survol de l'apercu).
+        * Champ "Nom du lot" (obligatoire, focus automatique).
+        * Champ "Description" (optionnel).
+        * Champ "Quantite", avec saisie numerique et boutons "-" et "+"
+          (le bouton "-" ne descend jamais en dessous de 1).
+        * Champ "Valeur (euros)" (optionnel, decimales autorisees).
+        * Boutons "Annuler" et "Ajouter" (ou "Enregistrer" en modification).
+      Validation : nom obligatoire, quantite superieure ou egale a 1, sinon
+      messages d'erreur sous les champs concernes.
+
+  - SUPPRIMER un lot
+      Icone corbeille au survol, suivie d'une modale de confirmation nommant
+      le lot concerne.
+
+4.3 Affichage
+  - Sous-titre recapitulatif : nombre de lots et nombre total de "gagnants
+    potentiels" (somme des quantites de tous les lots).
+  - Deux cartes statistiques, s'il y a au moins un lot :
+        * "Gagnants potentiels" : total des places a attribuer,
+        * "Valeur totale" : somme de (valeur x quantite) sur tous les lots,
+          affichee uniquement si elle est superieure a 0.
+  - Liste des lots sous forme de cartes horizontales :
+        * vignette de l'image du lot a gauche, ou icone grise si aucune photo
+          n'a ete importee,
+        * badge de rang selon la position dans la liste : "1er prix",
+          "2eme prix", "3eme prix", "4eme prix", "5eme prix", puis "6eme",
+          "7eme", etc. au-dela,
+        * nom du lot et description,
+        * badge "xN" indiquant la quantite,
+        * valeur en euros affichee en vert si elle est renseignee,
+        * boutons modifier et supprimer au survol.
+  - Etat vide : message "Aucun lot" et bouton "Ajouter un lot".
+
+
+--------------------------------------------------------------------------------
+5. ONGLET "TIRAGE"
+--------------------------------------------------------------------------------
+
+C'est le coeur de l'application. Cet onglet se deroule en 3 ecrans successifs.
+
+5.1 ECRAN 1 - CONFIGURATION
+  - Carte "Participants inscrits" affichant le nombre de participants
+    enregistres. Si ce nombre est 0, un avertissement orange s'affiche :
+    "Ajoutez des participants avant de lancer le tirage".
+  - Section "Lots a tirer" : liste de TOUS les lots avec une case a cocher
+    pour chacun. On choisit ainsi quels lots sont mis en jeu pour ce tirage
+    precis ; il n'est pas obligatoire de tout tirer d'un coup. Chaque ligne
+    affiche :
+        * la vignette de l'image du lot si disponible,
+        * le nom, la description et le badge de quantite,
+        * une mise en evidence (bordure et fond violets) quand le lot est
+          selectionne.
+  - Lien "Tout selectionner" / "Tout deselectionner" pour cocher ou decocher
+    l'ensemble des lots en un clic.
+  - Si aucun lot n'existe : encart "Aucun lot disponible - Ajoutez des lots
+    dans l'onglet Lots".
+  - Bandeau recapitulatif violet des qu'au moins un lot est coche :
+    "X gagnants seront designes parmi Y participants"
+    (X etant la somme des quantites des lots coches).
+  - Bouton "Lancer le tirage" :
+        * ACTIF uniquement s'il y a au moins 1 participant ET au moins 1 lot
+          coche,
+        * sinon grise, avec un message explicatif indiquant ce qui manque
+          ("Ajoutez des participants pour continuer" ou "Selectionnez au
+          moins un lot pour continuer").
+
+5.2 ECRAN 2 - ANIMATION DU TIRAGE
+  - Duree totale : 3,5 secondes.
+  - Un nom de participant pris au hasard defile en grand a l'ecran, dans une
+    carte intitulee "Participant selectionne".
+  - Effet de ralentissement progressif facon roue de loterie : l'intervalle
+    entre deux changements de nom passe progressivement d'environ 60 ms au
+    debut a environ 450 ms a la fin, donnant l'impression que le tirage
+    ralentit jusqu'a s'arreter.
+  - 4 points animes s'affichent en dessous, avec la mention
+    "N participants en lice".
+  - IMPORTANT : cette animation est purement visuelle. Les gagnants reels
+    sont calcules AVANT le lancement de l'animation ; les noms qui defilent
+    ne sont pas le resultat du tirage.
+  - Le minuteur de l'animation est proprement annule si l'utilisateur quitte
+    la page ou si le composant est demonte.
+
+5.3 ECRAN 3 - RESULTATS IMMEDIATS
+  - Badge vert "Tirage termine" et titre "N gagnants !".
+  - Mention "Les resultats ont ete sauvegardes dans l'historique" :
+    l'enregistrement est automatique, a la fin de l'animation.
+  - Liste des gagnants, dans l'ordre d'attribution :
+        * numero d'ordre dans une pastille ambre,
+        * image du lot si disponible,
+        * nom du gagnant et son email s'il est renseigne,
+        * badge violet portant le nom du lot gagne.
+  - Deux boutons :
+        * "Nouveau tirage" : remet l'ecran de configuration a zero
+          (selection des lots videe, resultats effaces de l'ecran),
+        * "Voir les resultats" : bascule automatiquement sur l'onglet
+          "Resultats".
+
+5.4 ALGORITHME DU TIRAGE (src/utils/tirage.js)
+  1. La liste des participants est copiee, puis melangee aleatoirement avec
+     l'algorithme de Fisher-Yates (melange uniforme, base sur Math.random).
+  2. On parcourt les lots selectionnes dans l'ordre de la liste.
+  3. Pour chaque lot, on attribue autant de gagnants que sa quantite, en
+     piochant les participants dans l'ordre de la liste melangee.
+  4. On avance dans la liste melangee sans jamais revenir en arriere :
+     UN PARTICIPANT NE PEUT DONC GAGNER QU'UNE SEULE FOIS. Il n'y a pas de
+     doublon de gagnant a l'interieur d'un meme tirage.
+  5. S'il y a plus de places a attribuer que de participants, le tirage
+     s'arrete des que tous les participants ont ete servis : les lots
+     restants ne sont pas attribues.
+  Resultat produit : une liste de paires { participant, lot }.
+
+
+--------------------------------------------------------------------------------
+6. ONGLET "RESULTATS"
+--------------------------------------------------------------------------------
+
+Role : consulter l'historique de tous les tirages deja realises.
+
+Chaque tirage sauvegarde contient : un identifiant unique, la date et l'heure
+exactes du tirage, et la liste complete des gagnants (participant et lot
+associe). Les tirages sont classes du plus recent au plus ancien.
+
+6.1 Bloc "Dernier tirage" (mis en avant)
+  - Date et heure formatees en francais (par exemple :
+    "05 fevrier 2026, 22:26").
+  - Nombre de gagnants.
+  - Section "Palmares" : podium des 3 premiers gagnants, avec
+        * une medaille numerotee et coloree (Or, Argent, Bronze),
+        * l'image du lot, ou une image de remplacement,
+        * le nom du gagnant et le lot gagne,
+        * un badge affichant la valeur du lot en euros si elle est
+          renseignee, sinon la quantite du lot.
+  - S'il y a plus de 3 gagnants, un bouton "Voir les N autres gagnants" /
+    "Masquer" deplie la suite de la liste, avec un chevron anime.
+
+6.2 Historique des tirages precedents
+  - Liste repliable des tirages plus anciens.
+  - Chaque ligne affiche une icone calendrier, la date et l'heure, et le
+    nombre de gagnants. Un clic deplie le detail complet du tirage :
+    numero d'ordre, image du lot, nom du gagnant, email s'il est renseigne,
+    et badge du lot gagne.
+  - Un seul bloc est deplie a la fois ; par defaut, c'est le dernier tirage.
+
+6.3 Effacement
+  - Bouton "Effacer tout" en haut a droite.
+  - Modale de confirmation "Effacer l'historique ?", precisant que tous les
+    resultats seront definitivement supprimes.
+  - L'effacement ne concerne QUE l'historique : les participants et les lots
+    sont conserves.
+
+6.4 Etat vide
+  - Si aucun tirage n'a encore ete effectue : icone trophee et message
+    "Aucun tirage effectue - Rendez-vous dans l'onglet Tirage pour lancer
+    votre premier tirage".
+
+
+--------------------------------------------------------------------------------
+7. PERSISTANCE DES DONNEES
+--------------------------------------------------------------------------------
+
+Trois collections sont enregistrees dans le localStorage du navigateur, sous
+les cles suivantes :
+
+  "participants"  -> la liste des participants
+  "lots"          -> la liste des lots, images comprises (en base64)
+  "historique"    -> la liste de tous les tirages effectues
+
+Consequences pratiques :
+  - Les donnees sont rechargees automatiquement a chaque ouverture de
+    l'application : rien n'est perdu en fermant l'onglet ou le navigateur.
+  - Les donnees NE SONT PAS partagees : elles sont propres au navigateur et
+    a la machine utilises. Un autre poste, un autre navigateur ou une session
+    de navigation privee repartiront d'une base vide.
+  - Vider le cache ou les donnees de site du navigateur efface tout.
+  - Les images de lots etant stockees en base64 dans le localStorage, des
+    images tres lourdes ou tres nombreuses peuvent saturer l'espace de
+    stockage disponible (typiquement de l'ordre de 5 Mo par domaine). En cas
+    d'echec d'ecriture, l'erreur est captee et journalisee en console sans
+    faire planter l'application.
+
+
+--------------------------------------------------------------------------------
+8. PARCOURS UTILISATEUR TYPE
+--------------------------------------------------------------------------------
+
+  1. Ouvrir l'application : l'onglet "Participants" est affiche par defaut.
+  2. Ajouter un a un les participants (nom obligatoire, email facultatif).
+  3. Aller dans l'onglet "Lots" et creer les prix a gagner : nom, photo,
+     description, quantite, valeur.
+  4. Aller dans l'onglet "Tirage", cocher les lots a mettre en jeu, verifier
+     le recapitulatif "X gagnants parmi Y participants".
+  5. Cliquer sur "Lancer le tirage" et laisser l'animation se derouler
+     (3,5 secondes).
+  6. Consulter la liste des gagnants affichee immediatement.
+  7. Cliquer sur "Voir les resultats" pour retrouver le tirage archive dans
+     l'historique, avec son palmares et sa date.
+  8. Relancer autant de tirages que necessaire : chacun s'ajoute a
+     l'historique.
+
+
+--------------------------------------------------------------------------------
+9. ERGONOMIE ET DESIGN
+--------------------------------------------------------------------------------
+
+  - Design moderne et clair, angles tres arrondis, ombres douces, couleur
+    principale violette.
+  - Contenu centre et largeur maximale limitee : la mise en page reste
+    lisible aussi bien sur ecran large que sur mobile.
+  - Toutes les suppressions (participant, lot, historique) passent par une
+    modale de confirmation : aucune suppression n'est immediate.
+  - Les boutons d'action apparaissent au survol des lignes, ce qui allege
+    l'interface au repos.
+  - Tous les compteurs gerent l'accord singulier / pluriel automatiquement.
+  - Chaque ecran vide propose une action pour demarrer : bouton d'ajout, ou
+    indication de l'onglet a visiter.
+  - Barre de defilement personnalisee, police Inter, lissage des polices.
+
+
+--------------------------------------------------------------------------------
+10. LIMITES ACTUELLES - CE QUE L'APPLICATION NE FAIT PAS
+--------------------------------------------------------------------------------
+
+  - Pas de compte utilisateur, pas d'authentification, pas de mode multi-
+    utilisateur : l'application est mono-poste.
+  - Pas de serveur ni de synchronisation : les donnees ne circulent pas entre
+    appareils.
+  - Pas d'import de participants en masse (CSV, Excel, collage d'une liste) :
+    la saisie est manuelle, un par un.
+  - Pas d'export des resultats (PDF, CSV, impression dediee) ni d'envoi
+    automatique d'email aux gagnants ; les emails sont seulement stockes et
+    affiches.
+  - Pas de suppression d'un tirage individuel dans l'historique : seul
+    l'effacement complet est possible.
+  - Pas de detection de doublons a l'ajout : deux participants portant le
+    meme nom peuvent coexister.
+  - Pas de ponderation ni de "chances multiples" : chaque participant a
+    exactement le meme poids dans le tirage.
+  - Le format de l'email n'est pas verifie au-dela du controle natif du
+    navigateur ; le champ etant optionnel, il peut rester vide.
+  - La limite de 5 Mo annoncee pour les images n'est pas verifiee par le
+    code : c'est une simple indication affichee a l'utilisateur.
+  - L'aleatoire repose sur Math.random : parfaitement suffisant pour un
+    tirage ludique, mais ce n'est pas un generateur cryptographique. Le
+    tirage n'est ni auditable ni reproductible, aucune graine n'etant
+    enregistree.
+
