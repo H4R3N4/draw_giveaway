@@ -1,28 +1,44 @@
 import { useState } from 'react'
 import { useApp } from '../../context/AppContext'
 import ParticipantForm from './ParticipantForm'
+import FacebookImport from './FacebookImport'
 import ConfirmDialog from '../ui/ConfirmDialog'
-import { IconPlus, IconSearch, IconClose, IconEdit, IconTrash, IconUsers } from '../ui/Icons'
+import { IconPlus, IconSearch, IconClose, IconEdit, IconTrash, IconUsers, IconFacebook } from '../ui/Icons'
 import { getInitiales, avatarColor, plural } from '../../utils/format'
 
 export default function ParticipantList() {
-  const { participants, ajouterParticipant, modifierParticipant, supprimerParticipant, reinitialiserParticipants } = useApp()
+  const { participants, ajouterParticipant, ajouterParticipants, modifierParticipant, supprimerParticipant, reinitialiserParticipants } = useApp()
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
+  const [showImport, setShowImport] = useState(false)
   const [editing, setEditing] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [confirmReset, setConfirmReset] = useState(false)
+  const [messageImport, setMessageImport] = useState('')
 
   const filtered = participants.filter(p =>
     `${p.nom} ${p.email || ''}`.toLowerCase().includes(search.toLowerCase())
   )
   const avecEmail = participants.filter(p => p.email).length
+  const depuisFacebook = participants.filter(p => p.source === 'facebook').length
 
   function handleSubmit(data) {
     if (editing) modifierParticipant(editing.id, data)
     else ajouterParticipant(data)
     setEditing(null)
     setShowForm(false)
+  }
+
+  function handleImport(liste) {
+    const ajoutes = ajouterParticipants(liste)
+    const ignores = liste.length - ajoutes
+    setShowImport(false)
+    setMessageImport(
+      ajoutes === 0
+        ? 'Aucun participant ajouté : ils figuraient déjà dans la liste.'
+        : `${plural(ajoutes, 'participant')} importé${ajoutes > 1 ? 's' : ''} depuis Facebook`
+          + (ignores > 0 ? ` — ${ignores} doublon${ignores > 1 ? 's' : ''} ignoré${ignores > 1 ? 's' : ''}.` : '.')
+    )
   }
 
   return (
@@ -34,16 +50,29 @@ export default function ParticipantList() {
             {plural(participants.length, 'participant')} {participants.length > 1 ? 'enregistrés' : 'enregistré'}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {participants.length > 0 && (
             <button className="btn btn-secondary" onClick={() => setConfirmReset(true)}>Réinitialiser</button>
           )}
+          <button className="btn btn-secondary" onClick={() => { setMessageImport(''); setShowImport(true) }}>
+            <IconFacebook size={15} />
+            Importer de Facebook
+          </button>
           <button className="btn btn-primary" onClick={() => setShowForm(true)}>
             <IconPlus size={15} />
             Ajouter
           </button>
         </div>
       </div>
+
+      {messageImport && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', margin: '0 0 4px', background: 'color-mix(in srgb, var(--color-accent) 12%, transparent)', borderLeft: '3px solid var(--color-accent)', fontSize: 13 }}>
+          <span>{messageImport}</span>
+          <button className="btn btn-ghost" onClick={() => setMessageImport('')} style={{ marginLeft: 'auto', flex: 'none' }} title="Fermer">
+            <IconClose size={14} />
+          </button>
+        </div>
+      )}
 
       {participants.length > 0 && (
         <div className="stat-grid">
@@ -55,6 +84,12 @@ export default function ParticipantList() {
             <div className="kicker">Avec email</div>
             <div className="stat-value">{avecEmail}</div>
           </div>
+          {depuisFacebook > 0 && (
+            <div>
+              <div className="kicker">Via Facebook</div>
+              <div className="stat-value">{depuisFacebook}</div>
+            </div>
+          )}
         </div>
       )}
 
@@ -81,7 +116,14 @@ export default function ParticipantList() {
             {getInitiales(p.nom)}
           </div>
           <div style={{ minWidth: 0 }}>
-            <div className="row-name" style={{ overflowWrap: 'anywhere' }}>{p.nom}</div>
+            <div className="row-name" style={{ overflowWrap: 'anywhere', display: 'flex', alignItems: 'center', gap: 7 }}>
+              {p.nom}
+              {p.source === 'facebook' && (
+                <span title="Importé depuis un commentaire Facebook" style={{ flex: 'none', display: 'flex', color: 'var(--color-accent)' }}>
+                  <IconFacebook size={14} />
+                </span>
+              )}
+            </div>
             <div style={{ fontSize: 13, overflowWrap: 'anywhere', color: p.email ? 'color-mix(in srgb, var(--color-text) 55%, transparent)' : 'color-mix(in srgb, var(--color-text) 35%, transparent)' }}>
               {p.email || "Pas d'email"}
             </div>
@@ -111,8 +153,22 @@ export default function ParticipantList() {
             Constituez d'abord la liste des personnes qui participent au tirage.
             Le nom est obligatoire, l'email facultatif.
           </p>
-          <button className="btn btn-primary" onClick={() => setShowForm(true)}>Ajouter un participant</button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button className="btn btn-primary" onClick={() => setShowForm(true)}>Ajouter un participant</button>
+            <button className="btn btn-secondary" onClick={() => setShowImport(true)}>
+              <IconFacebook size={15} />
+              Importer de Facebook
+            </button>
+          </div>
         </div>
+      )}
+
+      {showImport && (
+        <FacebookImport
+          participants={participants}
+          onImport={handleImport}
+          onClose={() => setShowImport(false)}
+        />
       )}
 
       {(showForm || editing) && (

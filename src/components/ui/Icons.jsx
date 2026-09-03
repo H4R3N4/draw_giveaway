@@ -81,6 +81,14 @@ export const IconTrophy = (p) => (
   </Icon>
 )
 
+export const IconFacebook = (p) => (
+  <Icon width={1.9} {...p}>
+    <path d="M3 3h18v18H3z" />
+    <path d="M16 7h-2.2A2.3 2.3 0 0 0 11.5 9.3V21" />
+    <path d="M8.6 13h5.9" />
+  </Icon>
+)
+
 export const IconCalendar = (p) => (
   <Icon width={1.8} {...p}>
     <path d="M3 5h18v16H3z" /><path d="M3 10h18M8 3v4M16 3v4" />

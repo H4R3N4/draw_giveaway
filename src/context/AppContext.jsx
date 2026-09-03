@@ -13,6 +13,37 @@ export function AppProvider({ children }) {
     setParticipants(prev => [...prev, nouveau])
   }
 
+  /**
+   * Ajout groupé (import Facebook) : un seul enregistrement pour toute la
+   * fournée, et les personnes déjà connues — même identifiant Facebook ou même
+   * nom — sont écartées pour éviter les doublons dans le tirage.
+   * @returns {number} nombre de participants réellement ajoutés
+   */
+  function ajouterParticipants(liste) {
+    let ajoutes = 0
+    setParticipants(prev => {
+      const idsConnus = new Set(prev.filter(p => p.facebookId).map(p => p.facebookId))
+      // Les anciennes fiches peuvent ne pas avoir de nom renseigné.
+      const nomsConnus = new Set(prev.map(p => (p.nom || '').trim().toLowerCase()).filter(Boolean))
+      const nouveaux = []
+
+      for (const data of liste) {
+        const nom = (data.nom || '').trim()
+        if (!nom) continue
+        if (data.facebookId && idsConnus.has(data.facebookId)) continue
+        if (nomsConnus.has(nom.toLowerCase())) continue
+
+        if (data.facebookId) idsConnus.add(data.facebookId)
+        nomsConnus.add(nom.toLowerCase())
+        nouveaux.push({ id: crypto.randomUUID(), ...data, nom, dateAjout: new Date().toISOString() })
+      }
+
+      ajoutes = nouveaux.length
+      return [...prev, ...nouveaux]
+    })
+    return ajoutes
+  }
+
   function modifierParticipant(id, data) {
     setParticipants(prev => prev.map(p => p.id === id ? { ...p, ...data } : p))
   }
@@ -57,7 +88,7 @@ export function AppProvider({ children }) {
 
   return (
     <AppContext.Provider value={{
-      participants, ajouterParticipant, modifierParticipant, supprimerParticipant, reinitialiserParticipants,
+      participants, ajouterParticipant, ajouterParticipants, modifierParticipant, supprimerParticipant, reinitialiserParticipants,
       lots, ajouterLot, modifierLot, supprimerLot, reinitialiserLots,
       historique, sauvegarderResultat, effacerHistorique,
     }}>
