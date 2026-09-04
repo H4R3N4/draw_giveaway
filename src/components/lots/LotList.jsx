@@ -5,21 +5,25 @@ import ConfirmDialog from '../ui/ConfirmDialog'
 import { IconPlus, IconEdit, IconTrash, IconImage, IconGift } from '../ui/Icons'
 import { plural } from '../../utils/format'
 import { formatMontant, valeurTotale } from '../../utils/devise'
-import { labelRang } from '../../constants'
+import { labelRang, DEVISES, DEVISE_PAR_DEFAUT } from '../../constants'
+import { IconSwap } from '../ui/Icons'
 
 export default function LotList() {
   const { lots, ajouterLot, modifierLot, supprimerLot } = useApp()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
+  /** Devise mise en avant dans le total du tableau de bord. */
+  const [deviseMiseEnValeur, setDeviseMiseEnValeur] = useState(DEVISE_PAR_DEFAUT)
+  const autreDevise = deviseMiseEnValeur === 'EUR' ? 'MGA' : 'EUR'
 
   // Les lots s'affichent dans l'ordre de leur prix (1er prix en tête), les
   // lots sans rang explicite (anciennes fiches) restant en fin de liste.
   const lotsTries = [...lots].sort((a, b) => (a.rang ?? Infinity) - (b.rang ?? Infinity))
 
   const totalPlaces = lots.reduce((acc, l) => acc + (parseInt(l.quantite, 10) || 0), 0)
-  const totalEUR = valeurTotale(lots, 'EUR')
-  const totalMGA = valeurTotale(lots, 'MGA')
+  const totalMisEnValeur = valeurTotale(lots, deviseMiseEnValeur)
+  const totalAutre = valeurTotale(lots, autreDevise)
 
   function handleSubmit(data) {
     if (editing) modifierLot(editing.id, data)
@@ -50,12 +54,23 @@ export default function LotList() {
             <div className="stat-value">{totalPlaces}</div>
           </div>
           <div>
-            <div className="kicker">Valeur totale</div>
-            {totalEUR > 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div className="kicker">Valeur totale</div>
+              <button
+                type="button" className="btn btn-ghost"
+                onClick={() => setDeviseMiseEnValeur(autreDevise)}
+                title={`Mettre en avant l'${DEVISES[autreDevise].label.toLowerCase()}`}
+                style={{ padding: '1px 6px', fontSize: 11, gap: 4 }}
+              >
+                <IconSwap size={11} />
+                Afficher en {DEVISES[autreDevise].label.toLowerCase()}
+              </button>
+            </div>
+            {totalMisEnValeur > 0 ? (
               <>
-                <div className="stat-value">{formatMontant(totalEUR, 'EUR')}</div>
+                <div className="stat-value">{formatMontant(totalMisEnValeur, deviseMiseEnValeur)}</div>
                 <div style={{ fontSize: 13, color: 'color-mix(in srgb, var(--color-text) 55%, transparent)', marginTop: 2 }}>
-                  soit {formatMontant(totalMGA, 'MGA')}
+                  soit {formatMontant(totalAutre, autreDevise)}
                 </div>
               </>
             ) : (

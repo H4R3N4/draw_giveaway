@@ -94,3 +94,9 @@ export const IconCalendar = (p) => (
     <path d="M3 5h18v16H3z" /><path d="M3 10h18M8 3v4M16 3v4" />
   </Icon>
 )
+
+export const IconSwap = (p) => (
+  <Icon width={2} {...p}>
+    <path d="M4 8h13M13 4l4 4-4 4" /><path d="M20 16H7M11 12l-4 4 4 4" />
+  </Icon>
+)

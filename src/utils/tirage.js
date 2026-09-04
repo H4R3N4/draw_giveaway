@@ -12,14 +12,19 @@ function shuffleArray(array) {
 
 /**
  * Développe les lots sélectionnés en une file de places à tirer, une par
- * gagnant à désigner. Le tirage se fait ensuite place par place.
- * @param {Array} lots - Lots sélectionnés (avec quantite)
+ * gagnant à désigner. Le tirage se fait ensuite place par place, en
+ * commençant par le lot au rang le plus bas (ex. 3e prix) pour finir sur le
+ * 1er prix — comme dans une cérémonie qui garde le meilleur pour la fin.
+ * Les lots sans rang explicite passent en dernier, dans leur ordre d'origine.
+ * @param {Array} lots - Lots sélectionnés (avec quantite, rang optionnel)
  * @param {number} maxPlaces - Plafond (nombre de participants disponibles)
  * @returns {Array} places - [{ lot, rangDansLot, quantiteLot }]
  */
 export function construirePlaces(lots, maxPlaces) {
+  const lotsOrdreDecroissant = [...lots].sort((a, b) => (b.rang ?? -Infinity) - (a.rang ?? -Infinity))
+
   const places = []
-  for (const lot of lots) {
+  for (const lot of lotsOrdreDecroissant) {
     const quantite = parseInt(lot.quantite, 10) || 1
     for (let i = 0; i < quantite; i++) {
       if (places.length >= maxPlaces) return places
