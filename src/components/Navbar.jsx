@@ -2,7 +2,7 @@ import { useApp } from '../context/AppContext'
 import { APP_TITLE } from '../constants'
 import { IconGift, IconArrowLeft } from './ui/Icons'
 
-export default function Navbar({ activeTab, tabs, onTabChange, onHome }) {
+export default function Navbar({ activeTab, tabs, onTabChange, onHome, homeLabel = 'Accueil', titre }) {
   const { participants, lots, historique } = useApp()
 
   const counts = {
@@ -19,16 +19,16 @@ export default function Navbar({ activeTab, tabs, onTabChange, onHome }) {
         </div>
         <div>
           <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 23, lineHeight: 1.05, letterSpacing: '-0.01em', textTransform: 'uppercase' }}>
-            {APP_TITLE}
+            {titre || APP_TITLE}
           </div>
           <div style={{ fontSize: 12, color: 'color-mix(in srgb, var(--color-text) 55%, transparent)' }}>
-            Gérez vos participants, lots et tirages
+            {titre ? 'Participants, lots et tirages de ce giveaway' : 'Gérez vos participants, lots et tirages'}
           </div>
         </div>
         <div style={{ marginLeft: 'auto', paddingBottom: 2 }}>
           <button className="btn btn-secondary" onClick={onHome}>
             <IconArrowLeft size={15} />
-            Accueil
+            {homeLabel}
           </button>
         </div>
       </div>
