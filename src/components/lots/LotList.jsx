@@ -4,6 +4,7 @@ import LotForm from './LotForm'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { IconPlus, IconEdit, IconTrash, IconImage, IconGift } from '../ui/Icons'
 import { plural } from '../../utils/format'
+import { formatMontant, valeurTotale } from '../../utils/devise'
 import { RANK_LABELS } from '../../constants'
 
 export default function LotList() {
@@ -13,9 +14,8 @@ export default function LotList() {
   const [confirmDelete, setConfirmDelete] = useState(null)
 
   const totalPlaces = lots.reduce((acc, l) => acc + (parseInt(l.quantite, 10) || 0), 0)
-  const valeurTotale = lots.reduce(
-    (acc, l) => acc + (parseFloat(l.valeur) || 0) * (parseInt(l.quantite, 10) || 1), 0
-  )
+  const totalEUR = valeurTotale(lots, 'EUR')
+  const totalMGA = valeurTotale(lots, 'MGA')
 
   function handleSubmit(data) {
     if (editing) modifierLot(editing.id, data)
@@ -47,7 +47,16 @@ export default function LotList() {
           </div>
           <div>
             <div className="kicker">Valeur totale</div>
-            <div className="stat-value">{valeurTotale > 0 ? `${valeurTotale.toFixed(0)} €` : '—'}</div>
+            {totalEUR > 0 ? (
+              <>
+                <div className="stat-value">{formatMontant(totalEUR, 'EUR')}</div>
+                <div style={{ fontSize: 13, color: 'color-mix(in srgb, var(--color-text) 55%, transparent)', marginTop: 2 }}>
+                  soit {formatMontant(totalMGA, 'MGA')}
+                </div>
+              </>
+            ) : (
+              <div className="stat-value">—</div>
+            )}
           </div>
         </div>
       )}
@@ -74,7 +83,7 @@ export default function LotList() {
             <span className="tag tag-neutral">×{lot.quantite}</span>
             {parseFloat(lot.valeur) > 0 && (
               <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 15, whiteSpace: 'nowrap' }}>
-                {parseFloat(lot.valeur).toFixed(0)} €
+                {formatMontant(parseFloat(lot.valeur), lot.devise)}
               </span>
             )}
             <div style={{ display: 'flex', gap: 4 }}>

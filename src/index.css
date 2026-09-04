@@ -217,9 +217,8 @@ img { display: block; max-width: 100%; }
   .home-hero { grid-template-columns: minmax(0, 1fr) !important; }
   .home-hero > :first-child { padding-right: 0 !important; }
   .home-hero-space { display: none; }
-  .home-steps { grid-template-columns: minmax(0, 1fr) !important; }
-  .home-steps > * { padding: 32px 0 !important; border-right: 0 !important; border-top: 1px solid var(--color-divider); }
-  .home-steps > :first-child { border-top: 0; }
+  /* Les étapes du tuto passent en une colonne, texte au-dessus de la capture. */
+  .home-step-row { grid-template-columns: minmax(0, 1fr) !important; gap: 20px !important; }
   .podium { grid-template-columns: minmax(0, 1fr) !important; }
   .podium > * { padding: 22px 0 !important; border-right: 0 !important; border-top: 1px solid var(--color-divider); }
   .podium > :first-child { border-top: 0; }
@@ -228,6 +227,8 @@ img { display: block; max-width: 100%; }
 @media (max-width: 720px) {
   h1 { font-size: 32px; }
   h2 { font-size: 26px; }
+  /* Le bouton d'en-tête déborderait ; celui de l'accroche reste visible. */
+  .home-header-cta { display: none; }
   .stat-grid { grid-template-columns: 1fr; }
   .stat-grid > :first-child { border-right: 0; border-bottom: 1px solid var(--color-divider); padding: 16px 0; }
   .stat-grid > :last-child { padding: 16px 0; }

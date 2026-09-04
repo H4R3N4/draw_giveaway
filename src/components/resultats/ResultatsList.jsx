@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { IconImage, IconTrophy, IconCalendar } from '../ui/Icons'
 import { formatDate, plural } from '../../utils/format'
+import { formatMontant } from '../../utils/devise'
 import { MEDALS } from '../../constants'
 
 export default function ResultatsList({ onGoTirage }) {
@@ -87,7 +88,7 @@ export default function ResultatsList({ onGoTirage }) {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 4 }}>
                 <div style={{ fontSize: 13, overflowWrap: 'anywhere', color: 'color-mix(in srgb, var(--color-text) 55%, transparent)' }}>{g.lot.nom}</div>
                 <span className="tag tag-accent">
-                  {parseFloat(g.lot.valeur) > 0 ? `${parseFloat(g.lot.valeur).toFixed(0)} €` : `×${g.lot.quantite}`}
+                  {parseFloat(g.lot.valeur) > 0 ? formatMontant(parseFloat(g.lot.valeur), g.lot.devise) : `×${g.lot.quantite}`}
                 </span>
               </div>
             </div>

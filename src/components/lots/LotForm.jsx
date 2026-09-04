@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { IconUpload } from '../ui/Icons'
+import { DEVISES, DEVISE_PAR_DEFAUT } from '../../constants'
 
 const TAILLE_MAX = 5 * 1024 * 1024
 
@@ -10,6 +11,7 @@ export default function LotForm({ lot, onSubmit, onClose }) {
     description: lot?.description || '',
     quantite: lot?.quantite ?? 1,
     valeur: lot?.valeur || '',
+    devise: lot?.devise || DEVISE_PAR_DEFAUT,
     image: lot?.image || '',
   }))
   const [errors, setErrors] = useState({})
@@ -124,13 +126,26 @@ export default function LotForm({ lot, onSubmit, onClose }) {
           </div>
 
           <div className="field">
-            <label htmlFor="l-valeur">Valeur (euros, facultatif)</label>
-            <input
-              id="l-valeur" className="input" type="number" min="0" step="0.01"
-              value={form.valeur}
-              onChange={e => setForm(f => ({ ...f, valeur: e.target.value }))}
-              placeholder="0"
-            />
+            <label htmlFor="l-valeur">Valeur (facultatif)</label>
+            <div style={{ display: 'flex' }}>
+              <input
+                id="l-valeur" className="input" type="number" min="0" step="0.01"
+                value={form.valeur}
+                onChange={e => setForm(f => ({ ...f, valeur: e.target.value }))}
+                placeholder="0"
+                style={{ borderRight: 0 }}
+              />
+              <select
+                className="input" aria-label="Devise"
+                value={form.devise}
+                onChange={e => setForm(f => ({ ...f, devise: e.target.value }))}
+                style={{ flex: 'none', width: 84 }}
+              >
+                {Object.values(DEVISES).map(d => (
+                  <option key={d.code} value={d.code}>{d.symbole}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
