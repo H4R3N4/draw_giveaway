@@ -5,13 +5,17 @@ import ConfirmDialog from '../ui/ConfirmDialog'
 import { IconPlus, IconEdit, IconTrash, IconImage, IconGift } from '../ui/Icons'
 import { plural } from '../../utils/format'
 import { formatMontant, valeurTotale } from '../../utils/devise'
-import { RANK_LABELS } from '../../constants'
+import { labelRang } from '../../constants'
 
 export default function LotList() {
   const { lots, ajouterLot, modifierLot, supprimerLot } = useApp()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
+
+  // Les lots s'affichent dans l'ordre de leur prix (1er prix en tête), les
+  // lots sans rang explicite (anciennes fiches) restant en fin de liste.
+  const lotsTries = [...lots].sort((a, b) => (a.rang ?? Infinity) - (b.rang ?? Infinity))
 
   const totalPlaces = lots.reduce((acc, l) => acc + (parseInt(l.quantite, 10) || 0), 0)
   const totalEUR = valeurTotale(lots, 'EUR')
@@ -61,7 +65,7 @@ export default function LotList() {
         </div>
       )}
 
-      {lots.map((lot, index) => (
+      {lotsTries.map(lot => (
         <div className="row" key={lot.id} style={{ gap: 18, padding: '16px 0' }}>
           <div style={{ width: 74, height: 74, flex: 'none', background: 'var(--color-neutral-200)', display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
             {lot.image
@@ -71,7 +75,7 @@ export default function LotList() {
 
           <div style={{ minWidth: 0 }}>
             <div className="kicker kicker-accent" style={{ marginBottom: 2 }}>
-              {RANK_LABELS[index] || `${index + 1}e prix`}
+              {lot.rang ? labelRang(lot.rang) : 'Non classé'}
             </div>
             <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 18, overflowWrap: 'anywhere' }}>{lot.nom}</div>
             {lot.description && (
@@ -113,6 +117,7 @@ export default function LotList() {
       {(showForm || editing) && (
         <LotForm
           lot={editing}
+          lots={lots}
           onSubmit={handleSubmit}
           onClose={() => { setShowForm(false); setEditing(null) }}
         />

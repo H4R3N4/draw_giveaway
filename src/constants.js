@@ -12,6 +12,11 @@ export const AVATAR_COLORS = [
 
 export const RANK_LABELS = ['1er prix', '2e prix', '3e prix', '4e prix', '5e prix']
 
+/** Libellé du rang d'un lot (« 1er prix », « 2e prix »…), au-delà de RANK_LABELS. */
+export function labelRang(rang) {
+  return RANK_LABELS[rang - 1] || `${rang}e prix`
+}
+
 /** Devises disponibles pour la valeur des lots. */
 export const DEVISES = {
   EUR: { code: 'EUR', label: 'Euro', symbole: '€' },

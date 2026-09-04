@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { IconUpload } from '../ui/Icons'
-import { DEVISES, DEVISE_PAR_DEFAUT } from '../../constants'
+import { DEVISES, DEVISE_PAR_DEFAUT, labelRang } from '../../constants'
 
 const TAILLE_MAX = 5 * 1024 * 1024
+/** Nombre de rangs proposés dans le sélecteur, au-delà du nombre de lots existants. */
+const RANGS_MIN_PROPOSES = 5
 
-export default function LotForm({ lot, onSubmit, onClose }) {
+export default function LotForm({ lot, lots = [], onSubmit, onClose }) {
   // La modale est montée à neuf à chaque ouverture : l'état initial suffit.
   const [form, setForm] = useState(() => ({
     nom: lot?.nom || '',
@@ -12,8 +14,11 @@ export default function LotForm({ lot, onSubmit, onClose }) {
     quantite: lot?.quantite ?? 1,
     valeur: lot?.valeur || '',
     devise: lot?.devise || DEVISE_PAR_DEFAUT,
+    // Par défaut, un nouveau lot prend le rang suivant disponible.
+    rang: lot?.rang ?? lots.length + 1,
     image: lot?.image || '',
   }))
+  const nbRangsProposes = Math.max(lots.length + 1, RANGS_MIN_PROPOSES)
   const [errors, setErrors] = useState({})
   const fileRef = useRef(null)
 
@@ -107,6 +112,19 @@ export default function LotForm({ lot, onSubmit, onClose }) {
             onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
             placeholder="Ex. Sans fil, réduction de bruit"
           />
+        </div>
+
+        <div className="field">
+          <label htmlFor="l-rang">Prix</label>
+          <select
+            id="l-rang" className="input"
+            value={form.rang}
+            onChange={e => setForm(f => ({ ...f, rang: parseInt(e.target.value, 10) }))}
+          >
+            {Array.from({ length: nbRangsProposes }, (_, i) => i + 1).map(r => (
+              <option key={r} value={r}>{labelRang(r)}</option>
+            ))}
+          </select>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>

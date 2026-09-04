@@ -1,20 +1,17 @@
 import { useState } from 'react'
 import { useApp } from '../../context/AppContext'
 import ParticipantForm from './ParticipantForm'
-import FacebookImport from './FacebookImport'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { IconPlus, IconSearch, IconClose, IconEdit, IconTrash, IconUsers, IconFacebook } from '../ui/Icons'
 import { getInitiales, avatarColor, plural } from '../../utils/format'
 
 export default function ParticipantList() {
-  const { participants, ajouterParticipant, ajouterParticipants, modifierParticipant, supprimerParticipant, reinitialiserParticipants } = useApp()
+  const { participants, ajouterParticipant, modifierParticipant, supprimerParticipant, reinitialiserParticipants } = useApp()
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [showImport, setShowImport] = useState(false)
   const [editing, setEditing] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [confirmReset, setConfirmReset] = useState(false)
-  const [messageImport, setMessageImport] = useState('')
 
   const filtered = participants.filter(p =>
     `${p.nom} ${p.email || ''}`.toLowerCase().includes(search.toLowerCase())
@@ -27,18 +24,6 @@ export default function ParticipantList() {
     else ajouterParticipant(data)
     setEditing(null)
     setShowForm(false)
-  }
-
-  function handleImport(liste) {
-    const ajoutes = ajouterParticipants(liste)
-    const ignores = liste.length - ajoutes
-    setShowImport(false)
-    setMessageImport(
-      ajoutes === 0
-        ? 'Aucun participant ajouté : ils figuraient déjà dans la liste.'
-        : `${plural(ajoutes, 'participant')} importé${ajoutes > 1 ? 's' : ''} depuis Facebook`
-          + (ignores > 0 ? ` — ${ignores} doublon${ignores > 1 ? 's' : ''} ignoré${ignores > 1 ? 's' : ''}.` : '.')
-    )
   }
 
   return (
@@ -54,7 +39,7 @@ export default function ParticipantList() {
           {participants.length > 0 && (
             <button className="btn btn-secondary" onClick={() => setConfirmReset(true)}>Réinitialiser</button>
           )}
-          <button className="btn btn-secondary" onClick={() => { setMessageImport(''); setShowImport(true) }}>
+          <button className="btn btn-secondary" disabled title="Import Facebook — bientôt disponible">
             <IconFacebook size={15} />
             Importer de Facebook
           </button>
@@ -64,15 +49,6 @@ export default function ParticipantList() {
           </button>
         </div>
       </div>
-
-      {messageImport && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', margin: '0 0 4px', background: 'color-mix(in srgb, var(--color-accent) 12%, transparent)', borderLeft: '3px solid var(--color-accent)', fontSize: 13 }}>
-          <span>{messageImport}</span>
-          <button className="btn btn-ghost" onClick={() => setMessageImport('')} style={{ marginLeft: 'auto', flex: 'none' }} title="Fermer">
-            <IconClose size={14} />
-          </button>
-        </div>
-      )}
 
       {participants.length > 0 && (
         <div className="stat-grid">
@@ -155,20 +131,12 @@ export default function ParticipantList() {
           </p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button className="btn btn-primary" onClick={() => setShowForm(true)}>Ajouter un participant</button>
-            <button className="btn btn-secondary" onClick={() => setShowImport(true)}>
+            <button className="btn btn-secondary" disabled title="Import Facebook — bientôt disponible">
               <IconFacebook size={15} />
               Importer de Facebook
             </button>
           </div>
         </div>
-      )}
-
-      {showImport && (
-        <FacebookImport
-          participants={participants}
-          onImport={handleImport}
-          onClose={() => setShowImport(false)}
-        />
       )}
 
       {(showForm || editing) && (

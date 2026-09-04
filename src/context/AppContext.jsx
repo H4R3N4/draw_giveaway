@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
+import { reorganiserRangs } from '../utils/lots'
 
 const AppContext = createContext(null)
 
@@ -138,13 +139,22 @@ export function AppProvider({ children }) {
   }
 
   // ── Lots ────────────────────────────────────────────────────────────
+  // Un rang de prix (1er, 2e…) n'est jamais partagé : en choisir un déjà pris
+  // décale les autres lots comme une insertion dans une liste ordonnée.
   function ajouterLot(data) {
     const nouveau = { id: crypto.randomUUID(), ...data }
-    majDonneesActives('lots', prev => [...prev, nouveau])
+    majDonneesActives('lots', prev => {
+      const decales = data.rang != null ? reorganiserRangs(prev, nouveau.id, data.rang) : prev
+      return [...decales, nouveau]
+    })
   }
 
   function modifierLot(id, data) {
-    majDonneesActives('lots', prev => prev.map(l => l.id === id ? { ...l, ...data } : l))
+    majDonneesActives('lots', prev => {
+      const ancien = prev.find(l => l.id === id)
+      const decales = data.rang != null ? reorganiserRangs(prev, id, data.rang, ancien?.rang) : prev
+      return decales.map(l => l.id === id ? { ...l, ...data } : l)
+    })
   }
 
   function supprimerLot(id) {
