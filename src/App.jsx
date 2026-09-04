@@ -8,8 +8,11 @@ import ParticipantList from './components/participants/ParticipantList'
 import LotList from './components/lots/LotList'
 import TiragePanel from './components/tirage/TiragePanel'
 import ResultatsList from './components/resultats/ResultatsList'
+import EcranChargement from './components/ui/EcranChargement'
 import { IconGift, IconArrowLeft } from './components/ui/Icons'
 import { APP_TITLE } from './constants'
+import { LISTE_IMAGES_APP } from './assets/images'
+import { usePrechargementImages } from './hooks/usePrechargementImages'
 
 const TABS = [
   { id: 'participants', label: 'Participants' },
@@ -101,6 +104,13 @@ function AppContent() {
 }
 
 export default function App() {
+  // Les illustrations de l'application sont mises en cache avant le premier
+  // rendu de l'interface : sinon les textes s'affichent d'abord et les images
+  // apparaissent une à une derrière eux.
+  const { pret, chargees, total } = usePrechargementImages(LISTE_IMAGES_APP)
+
+  if (!pret) return <EcranChargement chargees={chargees} total={total} />
+
   return (
     <AppProvider>
       <AppContent />

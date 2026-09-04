@@ -1,8 +1,6 @@
 import { APP_TITLE } from '../constants'
 import { IconGift, IconArrowRight } from './ui/Icons'
-import captureParticipants from '../assets/capture participant.png'
-import captureLots from '../assets/capture lots.png'
-import captureTirage from '../assets/tirage.png'
+import { IMAGES_APP } from '../assets/images'
 
 /**
  * Les trois étapes du parcours, illustrées par de vraies captures de
@@ -12,19 +10,19 @@ import captureTirage from '../assets/tirage.png'
 const STEPS = [
   {
     n: '01',
-    image: captureParticipants,
+    image: IMAGES_APP.captureParticipants,
     titre: 'Gérer les participants',
     texte: "Constituez la liste des personnes qui participent : le nom suffit, l'email reste facultatif. Chaque fiche reçoit ses initiales colorées, la recherche filtre la liste à la frappe, et l'import depuis Facebook récupère les commentaires d'une publication en écartant les doublons.",
   },
   {
     n: '02',
-    image: captureLots,
+    image: IMAGES_APP.captureLots,
     titre: 'Ajouter les lots',
     texte: "Décrivez les prix à gagner : photo, description, quantité et valeur en euro ou en ariary. La quantité fixe le nombre de gagnants pour ce lot, et le tableau de bord additionne la valeur totale en convertissant automatiquement les deux devises.",
   },
   {
     n: '03',
-    image: captureTirage,
+    image: IMAGES_APP.captureTirage,
     titre: 'Laisser le sort désigner les gagnants',
     texte: "Cochez les lots mis en jeu et lancez le tirage. Les noms défilent puis ralentissent jusqu'à s'arrêter sur l'élu, un lot après l'autre — un gagnant ne peut pas être tiré deux fois. Chaque tirage est archivé avec sa date et son palmarès complet.",
   },
@@ -60,7 +58,7 @@ export default function Home({ onEnter }) {
             display: 'flex', alignItems: 'center',
             borderBottom: '2px solid var(--color-divider)',
             backgroundColor: 'var(--color-bg)',
-            backgroundImage: 'url("/hero.png")',
+            backgroundImage: `url("${IMAGES_APP.hero}")`,
             backgroundSize: 'auto 90%',
             backgroundPosition: 'right -40px center',
             backgroundRepeat: 'no-repeat',
