@@ -15,10 +15,10 @@ export default function TiragePanel({ onTirageComplete }) {
   const [placeCourante, setPlaceCourante] = useState(0)
   /** Gagnants déjà désignés, dans l'ordre de tirage. */
   const [gagnants, setGagnants] = useState([])
-  /** Le gagnant de la place courante, tiré avant l'animation. */
+  /** Le gagnant de la place courante, tiré au moment du clic sur « Tirer ». */
   const [gagnantEnCours, setGagnantEnCours] = useState(null)
-  /** 'roulette' pendant le défilement, 'revele' quand le nom est acquis. */
-  const [phase, setPhase] = useState('roulette')
+  /** 'attente' avant le clic sur le bouton, 'roulette' pendant le défilement, 'revele' quand le nom est acquis. */
+  const [phase, setPhase] = useState('attente')
 
   const peutLancer = participants.length > 0 && lotsSelectionnes.length > 0
   const placesEnJeu = lotsSelectionnes.reduce((acc, id) => {
@@ -45,14 +45,20 @@ export default function TiragePanel({ onTirageComplete }) {
     const filePlaces = construirePlaces(lotsChoisis, participants.length)
     if (filePlaces.length === 0) return
 
-    // Le gagnant est tiré maintenant, en arrière-plan : l'animation ne fait
-    // que révéler un résultat déjà décidé.
+    // La configuration mène à un écran d'attente : le premier tirage, comme
+    // chaque suivant, ne démarre qu'après un clic explicite.
     setPlaces(filePlaces)
     setPlaceCourante(0)
     setGagnants([])
-    setGagnantEnCours(tirerUnGagnant(participants))
-    setPhase('roulette')
+    setGagnantEnCours(null)
+    setPhase('attente')
     setEtape('animation')
+  }
+
+  /** Déclenche le tirage de la place courante : le gagnant est tiré maintenant, en arrière-plan. */
+  function tirerPlaceCourante() {
+    setGagnantEnCours(tirerUnGagnant(participantsRestants(gagnants)))
+    setPhase('roulette')
   }
 
   /** La roulette s'est arrêtée : on acquiert le gagnant et on marque une pause. */
@@ -76,8 +82,8 @@ export default function TiragePanel({ onTirageComplete }) {
 
     setGagnants(acquis)
     setPlaceCourante(suivante)
-    setGagnantEnCours(tirerUnGagnant(restants))
-    setPhase('roulette')
+    setGagnantEnCours(null)
+    setPhase('attente')
   }
 
   function recommencer() {
@@ -86,7 +92,7 @@ export default function TiragePanel({ onTirageComplete }) {
     setPlaceCourante(0)
     setGagnants([])
     setGagnantEnCours(null)
-    setPhase('roulette')
+    setPhase('attente')
     setLotsSelectionnes([])
   }
 
@@ -133,17 +139,43 @@ export default function TiragePanel({ onTirageComplete }) {
           ))}
         </div>
 
-        <Roulette
-          key={placeCourante}
-          participants={enLice}
-          gagnant={gagnantEnCours}
-          onArret={surArretRoulette}
-        />
+        {phase === 'attente' ? (
+          // Écran d'attente : le tirage de cette place ne démarre qu'au clic.
+          <div
+            style={{
+              minHeight: 76 * 5, display: 'grid', placeItems: 'center',
+              background: 'var(--color-surface)',
+              borderTop: '2px solid var(--color-divider)', borderBottom: '2px solid var(--color-divider)',
+            }}
+          >
+            <div style={{ fontSize: 13, color: 'color-mix(in srgb, var(--color-text) 55%, transparent)' }}>
+              {plural(enLice.length, 'participant')} en lice — prêt à tirer
+            </div>
+          </div>
+        ) : (
+          <Roulette
+            key={placeCourante}
+            participants={enLice}
+            gagnant={gagnantEnCours}
+            onArret={surArretRoulette}
+          />
+        )}
 
-        {/* Sous la roulette : l'attente pendant le défilement, puis la
-            confirmation du gagnant et le passage à la place suivante. */}
+        {/* Sous la roulette : le bouton pour déclencher le tirage, puis
+            l'attente pendant le défilement, puis la confirmation du gagnant
+            et le passage à la place suivante. */}
         <div style={{ minHeight: 92, marginTop: 20 }}>
-          {phase === 'roulette' ? (
+          {phase === 'attente' ? (
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <button
+                className="btn btn-primary" onClick={tirerPlaceCourante}
+                style={{ fontSize: 15, padding: '12px 22px', whiteSpace: 'nowrap' }}
+              >
+                Tirer le gagnant du {place.lot.nom}
+                <IconArrowRight size={16} />
+              </button>
+            </div>
+          ) : phase === 'roulette' ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <div style={{ display: 'flex', gap: 6 }}>
                 {[0, 0.15, 0.3, 0.45].map(d => (

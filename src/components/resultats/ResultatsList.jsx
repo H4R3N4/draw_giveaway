@@ -37,8 +37,12 @@ export default function ResultatsList({ onGoTirage }) {
   }
 
   const dernier = historique[0]
-  const podium = dernier.gagnants.slice(0, 3)
-  const reste = dernier.gagnants.slice(3)
+  // Le podium suit le rang du prix (1er, 2e, 3e), pas l'ordre du tirage : le
+  // tirage se fait désormais du dernier lot vers le premier, dans le sens
+  // inverse du classement à afficher ici.
+  const gagnantsParRang = [...dernier.gagnants].sort((a, b) => (a.lot.rang ?? Infinity) - (b.lot.rang ?? Infinity))
+  const podium = gagnantsParRang.slice(0, 3)
+  const reste = gagnantsParRang.slice(3)
   const anciens = historique.slice(1)
 
   return (
@@ -140,7 +144,7 @@ export default function ResultatsList({ onGoTirage }) {
 
                 {ouvert && (
                   <div style={{ padding: '0 0 16px' }}>
-                    {tirage.gagnants.map((g, i) => (
+                    {[...tirage.gagnants].sort((a, b) => (a.lot.rang ?? Infinity) - (b.lot.rang ?? Infinity)).map((g, i) => (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 0 10px 30px', borderTop: '1px solid var(--color-divider)' }}>
                         <div style={{ width: 22, fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 12, color: 'color-mix(in srgb, var(--color-text) 45%, transparent)' }}>
                           {i + 1}
